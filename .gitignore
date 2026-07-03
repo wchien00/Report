@@ -1,0 +1,9 @@
+# 忽略產出的 PDF 檔案
+*.pdf
+
+# 忽略測試或重複的試算表
+N月報價單.xlsx
+
+# 忽略系統暫存檔
+.DS_Store
+Thumbs.db

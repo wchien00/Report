@@ -1,0 +1,2448 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>達誠報價與排班助手</title>
+  
+  <!-- 引入 Google Fonts (Noto Sans TC) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- 引入 html2pdf & html2canvas CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    /* ---------------- 全域樣式與變數 ---------------- */
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --secondary: #10b981;
+      --secondary-hover: #059669;
+      --background: #f8fafc;
+      --surface: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-lg: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Noto Sans TC', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--background);
+      color: var(--text-main);
+      padding-bottom: 80px; /* 留出底部導覽列空間 */
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    /* ---------------- 系統切換欄 (頂端 Portal Bar) ---------------- */
+    .system-selector {
+      background-color: #1e293b;
+      display: flex;
+      padding: 6px;
+      gap: 6px;
+      z-index: 101;
+      position: sticky;
+      top: 0;
+    }
+
+    .system-btn {
+      flex: 1;
+      border: none;
+      background: none;
+      color: #94a3b8;
+      padding: 10px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .system-btn.active {
+      background-color: var(--surface);
+      color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* ---------------- 頂部標題列 (緊隨系統切換列) ---------------- */
+    header {
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 16px;
+      position: sticky;
+      top: 48px;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow-sm);
+    }
+
+    header h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-actions button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.25rem;
+      padding: 4px;
+    }
+
+    /* ---------------- 主要容器 ---------------- */
+    .container {
+      max-width: 650px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    /* ---------------- 分頁控制 ---------------- */
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ---------------- 卡片樣式 ---------------- */
+    .card {
+      background-color: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+      color: var(--text-main);
+      border-left: 4px solid var(--primary);
+      padding-left: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* ---------------- 表單元素 ---------------- */
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      background-color: #fafafa;
+      color: var(--text-main);
+      transition: all 0.2s;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+      background-color: #fff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* ---------------- 按鈕樣式 ---------------- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 16px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background-color: var(--secondary);
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--secondary-hover);
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+    }
+
+    .btn-outline:hover {
+      background-color: #f1f5f9;
+    }
+
+    /* ---------------- 品項編輯區 (報價單) ---------------- */
+    .item-list-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .item-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      background-color: #f8fafc;
+      position: relative;
+    }
+
+    .item-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      border-bottom: 1px dashed var(--border);
+      padding-bottom: 6px;
+    }
+
+    .item-index-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      color: #ef4444;
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 500;
+    }
+
+    /* ---------------- 排班編輯 UI 專用樣式 ---------------- */
+    .roster-picker-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .staff-select-card {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px;
+    }
+
+    .staff-group-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin: 8px 4px 4px 4px;
+      padding-bottom: 2px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .staff-option {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+      background-color: #f8fafc;
+      transition: all 0.15s;
+    }
+
+    .staff-option:hover {
+      background-color: #f1f5f9;
+    }
+
+    .staff-option.active {
+      background-color: var(--primary);
+      color: white;
+    }
+
+    .staff-option .badge {
+      font-size: 0.7rem;
+      background-color: rgba(0, 0, 0, 0.08);
+      padding: 2px 6px;
+      border-radius: 20px;
+    }
+
+    .staff-option.active .badge {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* 畫筆工具選擇器 */
+    .paint-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .paint-tool {
+      flex: 1;
+      min-width: 65px;
+      text-align: center;
+      padding: 8px 4px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 700;
+      background-color: var(--surface);
+      transition: all 0.15s;
+    }
+
+    .paint-tool.active {
+      color: white;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* 不同班別著色 */
+    .color-shift-work    { background-color: #3b82f6; border-color: #2563eb; color: white; } /* ● 上班 */
+    .color-shift-off     { background-color: #ef4444; border-color: #dc2626; color: white; } /* 休 */
+    .color-shift-dis     { background-color: #10b981; border-color: #059669; color: white; } /* 消 */
+    .color-shift-morning { background-color: #f59e0b; border-color: #d97706; color: white; } /* 早 */
+    .color-shift-night   { background-color: #6366f1; border-color: #4f46e5; color: white; } /* 晚 */
+    .color-shift-all     { background-color: #8b5cf6; border-color: #7c3aed; color: white; } /* 全 */
+    .color-shift-clear   { background-color: #f1f5f9; border-color: #cbd5e1; color: var(--text-main); } /* 橡皮擦 */
+
+    /* 月曆網格 (排班編輯用) */
+    .roster-calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      text-align: center;
+    }
+
+    .roster-cal-day {
+      height: 72px; /* 核心：固定拉高儲存格高度，不改變寬度，為手寫或小字體提供充足縱向空間 */
+      padding: 4px 2px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      border-radius: var(--radius-sm);
+      font-weight: 500;
+      font-size: 0.9rem;
+      border: 1px solid var(--border);
+      background-color: var(--surface);
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s;
+    }
+
+    .roster-cal-day.empty {
+      border: none;
+      background: none;
+      cursor: default;
+      height: 0;
+      min-height: 0;
+    }
+
+    .roster-cal-day.marked-work    { background-color: rgba(59, 130, 246, 0.12); border-color: #3b82f6; color: #2563eb; }
+    .roster-cal-day.marked-off     { background-color: rgba(239, 68, 68, 0.12); border-color: #ef4444; color: #dc2626; }
+    .roster-cal-day.marked-dis     { background-color: rgba(16, 185, 129, 0.12); border-color: #10b981; color: #059669; }
+    .roster-cal-day.marked-morning { background-color: rgba(245, 158, 11, 0.12); border-color: #f59e0b; color: #d97706; }
+    .roster-cal-day.marked-night   { background-color: rgba(99, 102, 241, 0.12); border-color: #6366f1; color: #4f46e5; }
+    .roster-cal-day.marked-all     { background-color: rgba(139, 92, 246, 0.12); border-color: #8b5cf6; color: #7c3aed; }
+
+    .roster-cal-day .day-num {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      align-self: flex-start;
+      line-height: 1;
+    }
+    
+    .roster-cal-day .my-shift-symbol {
+      font-size: 1.05rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    
+    /* 核心：放置同區塊其他同仁排班標籤的直立式容器 */
+    .roster-cal-day .other-staff-container {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      width: 100%;
+      align-items: center;
+      margin-top: auto;
+    }
+
+    /* 日曆左右滑動與固定寬度美化樣式 */
+    .calendar-scroll-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      padding: 6px;
+      margin-top: 15px;
+      margin-bottom: 8px;
+      border-radius: var(--radius);
+      background-color: #f8fafc;
+      border: 1px solid var(--border);
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: #cbd5e1 transparent;
+    }
+
+    .calendar-scroll-wrapper::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    .calendar-scroll-wrapper::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .calendar-scroll-wrapper::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 10px;
+    }
+
+    .calendar-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+      background: var(--primary);
+    }
+
+    .calendar-inner-container {
+      width: 480px; /* 固定寬度，防範在手機端被壓扁，確保日曆美觀不變形 */
+      margin: 0 auto;
+    }
+
+    .calendar-header-styled {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      padding: 0 4px;
+    }
+
+    .calendar-header-title {
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--text-main);
+    }
+
+    .calendar-header-hint {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      background-color: #e2e8f0;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    /* ---------------- 底部導覽列 (手機專屬) ---------------- */
+    nav.bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background-color: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      z-index: 100;
+      box-shadow: 0 -3px 5px -1px rgb(0 0 0 / 0.05);
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.75rem;
+      font-weight: 500;
+      background: none;
+      border: none;
+      cursor: pointer;
+      flex: 1;
+      height: 100%;
+    }
+
+    .nav-item svg {
+      width: 20px;
+      height: 20px;
+      margin-bottom: 3px;
+      transition: transform 0.2s;
+    }
+
+    .nav-item.active {
+      color: var(--primary);
+    }
+
+    .nav-item.active svg {
+      transform: scale(1.1);
+      fill: var(--primary);
+    }
+
+    /* ---------------- 報價單與班表正式預覽 ---------------- */
+    .preview-container {
+      background-color: #64748b;
+      padding: 16px 8px;
+      border-radius: var(--radius);
+      overflow-x: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* 報價單直式縮放外層 */
+    .preview-scaler {
+      transform: scale(0.62);
+      transform-origin: top center;
+      margin-bottom: -113mm; 
+    }
+
+    /* 班表橫式縮放外層 */
+    .preview-landscape-scaler {
+      transform: scale(0.6);
+      transform-origin: top center;
+      margin-bottom: -84mm; 
+    }
+
+    @media (max-width: 550px) {
+      .preview-scaler {
+        transform: scale(0.42);
+        margin-bottom: -173mm;
+      }
+      .preview-landscape-scaler {
+        transform: scale(0.3);
+        margin-bottom: -147mm;
+      }
+    }
+
+    /* 正式直式 A4 報價單樣式 */
+    .a4-page {
+      background-color: #ffffff;
+      width: 210mm;
+      height: 296mm; 
+      padding: 15mm 15mm; 
+      box-sizing: border-box;
+      box-shadow: var(--shadow-lg);
+      font-family: 'Noto Sans TC', sans-serif;
+      color: #000000;
+      position: relative;
+      overflow: hidden; 
+    }
+
+    /* 正式橫式 A4 班表樣式 - 確保內部沒有transform，這樣html2pdf抓取才不會出錯 */
+    .a4-landscape-page {
+      background-color: #ffffff;
+      width: 297mm;
+      height: 209mm; /* A4標準寬297mm，高210mm，高減1mm防止分頁 */
+      padding: 10mm 10mm; 
+      box-sizing: border-box;
+      box-shadow: var(--shadow-lg);
+      font-family: 'Noto Sans TC', sans-serif;
+      color: #000000;
+      position: relative;
+      overflow: hidden; 
+    }
+
+    /* 報價單內部排版 */
+    .a4-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .a4-header h2 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      margin-bottom: 4px;
+    }
+
+    .a4-header h3 {
+      font-size: 20px;
+      font-weight: 500;
+      letter-spacing: 1px;
+    }
+
+    .a4-meta-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      margin-bottom: 15px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .a4-meta-item span.label {
+      font-weight: 700;
+      display: inline-block;
+      width: 75px;
+    }
+
+    /* 表格樣式 */
+    .a4-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 13.5px;
+      table-layout: fixed;
+    }
+
+    .a4-table th, .a4-table td {
+      border: 1px solid #000000;
+      padding: 6px 8px;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .a4-table td {
+      height: 38px; 
+    }
+
+    .a4-table th {
+      background-color: #f1f5f9;
+      font-weight: 700;
+    }
+
+    .a4-table td.align-left {
+      text-align: left;
+      white-space: pre-wrap; 
+      line-height: 1.4;
+    }
+
+    /* 金額統計 */
+    .a4-summary-container {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+    }
+
+    .a4-summary-table {
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .a4-summary-table td {
+      padding: 4px 10px;
+      text-align: right;
+    }
+
+    .a4-summary-table td.label {
+      font-weight: 700;
+      width: 80px;
+    }
+
+    .a4-summary-table td.val {
+      width: 110px;
+      border-bottom: 1px solid #000000;
+    }
+
+    .a4-summary-table tr.total-row td.val {
+      border-bottom: 2px double #000000;
+      font-weight: 700;
+    }
+
+    /* 報價單底部聲明 (固定置底) */
+    .a4-footer {
+      font-size: 13px;
+      line-height: 1.5;
+      position: absolute;
+      bottom: 15mm;
+      left: 15mm;
+      right: 15mm;
+    }
+
+    .a4-footer .date {
+      margin-bottom: 10px;
+    }
+
+    .a4-footer .notes {
+      margin-bottom: 15px;
+    }
+
+    .a4-notes-area {
+      min-height: 48px; 
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .a4-company-line {
+      display: flex;
+      justify-content: space-between;
+      border-top: 1px solid #000000;
+      padding-top: 10px;
+      font-weight: 500;
+    }
+
+    /* ---------------- 橫式班表專用表格 (字體放大優化) ---------------- */
+    .a4-landscape-header {
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .a4-landscape-header h2 {
+      font-size: 24px; /* 放大標題 */
+      font-weight: 700;
+      letter-spacing: 2px;
+    }
+
+    .roster-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px; /* 核心：放大表格字體 (舊為 11px) */
+      table-layout: fixed;
+      border: 1.5px solid #000000;
+    }
+
+    .roster-table th, .roster-table td {
+      border: 1px solid #000000;
+      padding: 5px 1px; /* 核心：增加內縮提供手寫空間與清晰度 */
+      text-align: center;
+      vertical-align: middle;
+      font-weight: 500;
+    }
+
+    .roster-table th {
+      background-color: #f1f5f9;
+      font-weight: 700;
+      font-size: 13px; /* 核心：放大表頭 */
+    }
+
+    .roster-table tr.weekday-row th {
+      background-color: #f8fafc;
+      font-weight: 700;
+      font-size: 12px; /* 核心：放大星期標題 */
+    }
+
+    /* 核心：重新調整欄位寬度比例以適應放大的字體與手寫 */
+    .roster-table th.col-branch, .roster-table td.col-branch { width: 55px; font-weight: 700; font-size: 12.5px; }
+    .roster-table th.col-name, .roster-table td.col-name { width: 85px; font-weight: 700; font-size: 12.5px; }
+    .roster-table th.col-day, .roster-table td.col-day { width: calc((100% - 140px) / 31); }
+
+    /* 班別字體顏色著色 (列印仍清晰) */
+    .roster-table td.shift-off {
+      color: #dc2626;
+      font-weight: 700;
+    }
+    .roster-table td.shift-dis {
+      color: #059669;
+      font-weight: 700;
+    }
+    .roster-table td.shift-morning {
+      color: #d97706;
+      font-weight: 700;
+    }
+    .roster-table td.shift-night {
+      color: #4f46e5;
+      font-weight: 700;
+    }
+    .roster-table td.shift-all {
+      color: #7c3aed;
+      font-weight: 700;
+    }
+
+    /* 提示訊息 */
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background-color: #1e293b;
+      color: #ffffff;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 0.9rem;
+      z-index: 1000;
+      box-shadow: var(--shadow-lg);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 頂部系統切換列 -->
+  <nav class="system-selector">
+    <button class="system-btn active" id="sys-quote" onclick="switchSystem('quote')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+      報價單產生器
+    </button>
+    <button class="system-btn" id="sys-roster" onclick="switchSystem('roster')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+      排班表產生器
+    </button>
+  </nav>
+
+  <!-- 頂部標題列 -->
+  <header>
+    <h1 id="header-title-text">達誠報價單產出助手</h1>
+    <div class="header-actions">
+      <button onclick="resetCurrentSystemData()" title="重設此功能至預設模板">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M16 3h5v5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 21H3v-5"></path></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- 主內容區 -->
+  <main class="container">
+
+    <!-- ==================== [系統A: 報價單系統] ==================== -->
+    <div id="system-quote-container">
+      
+      <!-- SUB-TAB 1: 編輯內容 -->
+      <div id="tab-edit" class="tab-content active">
+        <!-- 報價單抬頭基本資訊 -->
+        <div class="card">
+          <div class="card-title">🏢 報價抬頭資訊</div>
+          <div class="form-group">
+            <label for="quote-company">報價抬頭 (公司名稱)</label>
+            <input type="text" id="quote-company" class="form-control" value="達誠專業環保清潔社">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="quote-client">客戶名稱</label>
+              <input type="text" id="quote-client" class="form-control" value="悅禾莊園">
+            </div>
+            <div class="form-group">
+              <label for="quote-contact">聯絡人與電話</label>
+              <input type="text" id="quote-contact" class="form-control" value="溫瑞萍 0981-881-556">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="quote-project">工程名稱</label>
+              <input type="text" id="quote-project" class="form-control" value="清潔工程">
+            </div>
+            <div class="form-group">
+              <label for="quote-location">工程地點</label>
+              <input type="text" id="quote-location" class="form-control" value="">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="quote-date">報價日期 (民國格式)</label>
+              <input type="text" id="quote-date" class="form-control" value="115.06.28">
+            </div>
+            <div class="form-group">
+              <label for="quote-tax-rate">稅率 (%)</label>
+              <select id="quote-tax-rate" class="form-control" onchange="saveStateAndRecompute()">
+                <option value="5" selected>5% (加值稅)</option>
+                <option value="0">0% (未稅)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 大直會館時數自動計算 -->
+        <div class="card" style="border: 1px solid rgba(37, 99, 235, 0.3); background-color: rgba(37, 99, 235, 0.02);">
+          <div class="card-title" style="color: var(--primary); border-left-color: var(--primary);">
+            🗓️ 大直會館時數自動計算 (輔助)
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="calc-year">年份 (西元)</label>
+              <select id="calc-year" class="form-control">
+                <option value="2025">2025 年</option>
+                <option value="2026" selected>2026 年</option>
+                <option value="2027">2027 年</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="calc-month">月份</label>
+              <select id="calc-month" class="form-control">
+                <option value="1">1 月</option>
+                <option value="2">2 月</option>
+                <option value="3">3 月</option>
+                <option value="4">4 月</option>
+                <option value="5">5 月</option>
+                <option value="6" selected>6 月</option>
+                <option value="7">7 月</option>
+                <option value="8">8 月</option>
+                <option value="9">9 月</option>
+                <option value="10">10 月</option>
+                <option value="11">11 月</option>
+                <option value="12">12 月</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="calc-rate">時薪 (元/小時)</label>
+              <input type="number" id="calc-rate" class="form-control" value="500">
+            </div>
+            <div class="form-group">
+              <label>週四工時 / 週末工時</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="number" id="calc-thu-hours" class="form-control" value="4" step="0.5" style="flex: 1;" title="週四單次時數">
+                <input type="number" id="calc-weekend-hours" class="form-control" value="2" step="0.5" style="flex: 1;" title="週末單次時數">
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="autoCalculateAndApplyRoster()" style="margin-top: 6px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            自動計算並套用至項目 6
+          </button>
+        </div>
+
+        <!-- 報價項目清單 -->
+        <div class="card">
+          <div class="card-title">
+            <span>📋 報價項目清單</span>
+            <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.8rem; width: auto;" onclick="addNewQuoteItem()">+ 新增項目</button>
+          </div>
+          <div class="item-list-container" id="quote-items-list">
+            <!-- JS 動態填入 -->
+          </div>
+        </div>
+
+        <!-- 公司簽章與大備註 -->
+        <div class="card">
+          <div class="card-title">🖊️ 公司資訊與備註</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="quote-owner">負責人姓名</label>
+              <input type="text" id="quote-owner" class="form-control" value="廖玉山">
+            </div>
+            <div class="form-group">
+              <label for="quote-phone">公司聯絡電話</label>
+              <input type="text" id="quote-phone" class="form-control" value="0961-325-251">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="quote-notes">報價單備註聲明 (底端大備註)</label>
+            <textarea id="quote-notes" class="form-control" rows="3">本報價單未列事項若需施作另行報價</textarea>
+          </div>
+          <button class="btn btn-primary" onclick="switchToTab('preview')" style="margin-top: 10px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            預覽正式報價單
+          </button>
+        </div>
+      </div>
+
+      <!-- SUB-TAB 2: 預覽與分享 -->
+      <div id="tab-preview" class="tab-content">
+        <!-- 報價單導出按鈕 -->
+        <div class="card" style="position: sticky; top: 104px; z-index: 5; box-shadow: var(--shadow-md);">
+          <div class="card-title">📤 輸出與發送 (直式報價單)</div>
+          <div class="form-row" style="margin-bottom: 8px;">
+            <button class="btn btn-primary" onclick="downloadPDF()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              下載 PDF
+            </button>
+            <button class="btn btn-secondary" onclick="shareToLine()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+              分享至 LINE
+            </button>
+          </div>
+          <div class="form-row">
+            <button class="btn btn-outline" onclick="downloadImage()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+              儲存成圖片
+            </button>
+          </div>
+        </div>
+
+        <!-- 報價單預覽圖 -->
+        <div class="preview-container">
+          <div class="preview-scaler">
+            <div id="printable-area" class="a4-page">
+              <div class="a4-header">
+                <h2 id="a4-title-company">達誠專業環保清潔社</h2>
+                <h3 id="a4-title-month">7月-報價單</h3>
+              </div>
+              <div class="a4-meta-grid">
+                <div class="a4-meta-left">
+                  <div class="a4-meta-item"><span class="label">客戶名稱:</span><span id="a4-client">悅禾莊園</span></div>
+                  <div class="a4-meta-item"><span class="label">聯絡人:</span><span id="a4-contact">溫瑞萍 0981-881-556</span></div>
+                  <div class="a4-meta-item"><span class="label">工程名稱:</span><span id="a4-project">清潔工程</span></div>
+                  <div class="a4-meta-item"><span class="label">工程地點:</span><span id="a4-location"></span></div>
+                </div>
+              </div>
+              <table class="a4-table">
+                <thead>
+                  <tr>
+                    <th style="width: 8%;">項次</th>
+                    <th style="width: 48%;">名稱</th>
+                    <th style="width: 10%;">單位</th>
+                    <th style="width: 10%;">數量</th>
+                    <th style="width: 12%;">單價</th>
+                    <th style="width: 12%;">總價</th>
+                    <th style="width: 10%;">備註</th>
+                  </tr>
+                </thead>
+                <tbody id="a4-table-body">
+                  <!-- JS 動態渲染 -->
+                </tbody>
+              </table>
+              <div class="a4-summary-container">
+                <table class="a4-summary-table">
+                  <tr><td class="label">小計:</td><td class="val" id="a4-subtotal">0</td></tr>
+                  <tr><td class="label">稅金:</td><td class="val" id="a4-tax">0</td></tr>
+                  <tr class="total-row"><td class="label">合計:</td><td class="val" id="a4-total">0</td></tr>
+                </table>
+              </div>
+              <div class="a4-footer">
+                <div class="date"><span style="font-weight: 700;">報價日期:</span> <span id="a4-date">115.06.28</span></div>
+                <div class="notes">
+                  <span style="font-weight: 700; display: block; margin-bottom: 2px;">備註:</span>
+                  <div class="a4-notes-area" id="a4-notes"></div>
+                </div>
+                <div class="a4-company-line">
+                  <span id="a4-footer-company">達誠專業環保清潔社</span>
+                  <span>負責人:<span id="a4-footer-owner">廖玉山</span></span>
+                  <span>電話:<span id="a4-footer-phone">0961-325-251</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ==================== [系統B: 排班表系統] ==================== -->
+    <div id="system-roster-container" style="display: none;">
+      
+      <!-- SUB-TAB 1: 編輯排班 (日曆點選法) -->
+      <div id="tab-roster-edit" class="tab-content">
+        <!-- 排班時間設定 -->
+        <div class="card">
+          <div class="card-title">📅 排班月份設定</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="roster-year">年份 (西元)</label>
+              <select id="roster-year" class="form-control" onchange="onRosterMonthChange()">
+                <option value="2025">2025 年</option>
+                <option value="2026" selected>2026 年</option>
+                <option value="2027">2027 年</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="roster-month">月份</label>
+              <select id="roster-month" class="form-control" onchange="onRosterMonthChange()">
+                <option value="1">1 月</option>
+                <option value="2">2 月</option>
+                <option value="3">3 月</option>
+                <option value="4">4 月</option>
+                <option value="5">5 月</option>
+                <option value="6">6 月</option>
+                <option value="7" selected>7 月</option>
+                <option value="8">8 月</option>
+                <option value="9">9 月</option>
+                <option value="10">10 月</option>
+                <option value="11">11 月</option>
+                <option value="12">12 月</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 選擇排班人員與點擊班別 -->
+        <div class="card">
+          <div class="card-title">
+            <span>👥 選擇人員 (進行排班)</span>
+            <button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.8rem; width: auto;" onclick="toggleAddStaffForm()">+ 新增人員</button>
+          </div>
+          
+          <!-- 新增人員的隱藏表單 -->
+          <div id="add-staff-form" style="display: none; background-color: #f1f5f9; padding: 12px; border-radius: var(--radius-sm); margin-bottom: 12px; border: 1px solid var(--border);">
+            <div class="form-group">
+              <label for="new-staff-name" style="font-weight: 700;">員工姓名</label>
+              <input type="text" id="new-staff-name" class="form-control" placeholder="請輸入姓名，例如: 曉明">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="new-staff-group" style="font-weight: 700;">所屬組別 (分頁)</label>
+                <select id="new-staff-group" class="form-control" onchange="updateNewStaffBranchOptions()">
+                  <option value="1">仁愛、安和、大直</option>
+                  <option value="2">中山、南京</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="new-staff-branch" style="font-weight: 700;">所屬館別</label>
+                <select id="new-staff-branch" class="form-control">
+                  <!-- JS 動態生成 -->
+                </select>
+              </div>
+            </div>
+            <div class="form-row" style="margin-top: 8px;">
+              <button class="btn btn-outline" onclick="toggleAddStaffForm()">取消</button>
+              <button class="btn btn-primary" onclick="submitAddStaff()">儲存新增</button>
+            </div>
+          </div>
+
+          <!-- 人員按鈕選擇列表 -->
+          <div class="staff-select-card" id="staff-selection-list">
+            <!-- JS 動態生成分館群組與人員 -->
+          </div>
+        </div>
+
+        <!-- 排班畫筆與日曆網格 -->
+        <div class="card" id="roster-painter-card" style="display: none;">
+          <div class="card-title">
+            <span>🖌️ 排班塗色：<span id="current-selected-staff-name" style="color: var(--primary);">未選擇</span></span>
+            <button class="btn btn-outline" style="padding: 2px 8px; font-size: 0.75rem; width: auto;" onclick="clearCurrentStaffShifts()">清除本月排班</button>
+          </div>
+          
+          <!-- 畫筆選擇器 -->
+          <div class="paint-tools">
+            <div class="paint-tool color-shift-work active" onclick="selectPaintTool('work')">● 上班</div>
+            <div class="paint-tool color-shift-off" onclick="selectPaintTool('off')">休 假</div>
+            <div class="paint-tool color-shift-dis" onclick="selectPaintTool('dis')">消 毒</div>
+            <div class="paint-tool color-shift-morning" onclick="selectPaintTool('morning')">早 班</div>
+            <div class="paint-tool color-shift-night" onclick="selectPaintTool('night')">晚 班</div>
+            <div class="paint-tool color-shift-all" onclick="selectPaintTool('all')">全天班</div>
+            <div class="paint-tool color-shift-clear" onclick="selectPaintTool('clear')">🧹 擦除</div>
+          </div>
+
+          <!-- 快速填入星期工具 (排在排班塗色正下方) -->
+          <div class="quick-fill-bar" style="margin-top: 8px; margin-bottom: 12px; background-color: #f8fafc; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+            <div style="font-weight: 700; font-size: 0.82rem; margin-bottom: 6px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
+              <span>⚡ 用目前選取的班別一鍵填入本月所有：</span>
+              <button class="delete-btn" style="color:#ef4444; font-size:0.75rem; padding: 2px 6px; background: #fee2e2; border-radius: 4px; border: 1px solid #fca5a5; cursor: pointer;" onclick="clearCurrentStaffShifts()">🗑️ 清空此人排班</button>
+            </div>
+            
+            <!-- 智慧推薦提示 -->
+            <div id="smart-recommend-container" style="margin-bottom: 8px; display: none;"></div>
+            
+            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+              <button class="btn btn-outline" style="font-size: 0.8rem; padding: 5px 4px; flex: 1; min-width: 38px; text-align: center; width: auto;" onclick="applyQuickFill('monday')">一</button>
+              <button class="btn btn-outline" style="font-size: 0.8rem; padding: 5px 4px; flex: 1; min-width: 38px; text-align: center; width: auto;" onclick="applyQuickFill('tuesday')">二</button>
+              <button class="btn btn-outline" style="font-size: 0.8rem; padding: 5px 4px; flex: 1; min-width: 38px; text-align: center; width: auto;" onclick="applyQuickFill('wednesday')">三</button>
+              <button class="btn btn-outline" style="font-size: 0.8rem; padding: 5px 4px; flex: 1; min-width: 38px; text-align: center; width: auto;" onclick="applyQuickFill('thursday')">四</button>
+              <button class="btn btn-outline" style="font-size: 0.8rem; padding: 5px 4px; flex: 1; min-width: 38px; text-align: center; width: auto;" onclick="applyQuickFill('friday')">五</button>
+              <button class="btn btn-outline" style="font-size: 0.8rem; padding: 5px 4px; flex: 1; min-width: 38px; text-align: center; width: auto;" onclick="applyQuickFill('saturday')">六</button>
+              <button class="btn btn-outline" style="font-size: 0.8rem; padding: 5px 4px; flex: 1; min-width: 38px; text-align: center; width: auto;" onclick="applyQuickFill('sunday')">日</button>
+            </div>
+          </div>
+
+          <!-- 滑動美化包裝容器 -->
+          <div class="calendar-scroll-wrapper">
+            <div class="calendar-inner-container">
+              <!-- 排班日曆標題 -->
+              <div class="calendar-header-styled">
+                <div class="calendar-header-title" id="roster-calendar-month-label">2026年7月</div>
+                <div class="calendar-header-hint">👈 左右滑動日曆 👉</div>
+              </div>
+              <div class="roster-calendar-grid" id="roster-calendar-grid-container">
+                <!-- JS 動態生成月曆 -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="switchToTab('roster-preview')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          預覽正式排班表
+        </button>
+      </div>
+
+      <!-- SUB-TAB 2: 預覽與輸出 -->
+      <div id="tab-roster-preview" class="tab-content">
+        <!-- 輸出按鈕列 (優化：支援分頁 PDF 下載) -->
+        <div class="card" style="position: sticky; top: 104px; z-index: 5; box-shadow: var(--shadow-md);">
+          <div class="card-title">📤 輸出與發送 (橫式班表)</div>
+          <div class="form-row" style="margin-bottom: 8px;">
+            <button class="btn btn-primary" style="font-size: 0.8rem; padding: 10px;" onclick="downloadRosterPDF(1)">📥 下載第一頁 PDF<br>(仁愛安和大直)</button>
+            <button class="btn btn-primary" style="font-size: 0.8rem; padding: 10px;" onclick="downloadRosterPDF(2)">📥 下載第二頁 PDF<br>(中山南京)</button>
+          </div>
+          <div class="form-row" style="margin-bottom: 8px;">
+            <button class="btn btn-outline" style="font-size: 0.85rem; padding: 10px; grid-column: span 2;" onclick="downloadRosterPDF('both')">📥 下載雙頁合併完整 PDF</button>
+          </div>
+          <div class="form-row" style="margin-bottom: 6px;">
+            <button class="btn btn-outline" style="font-size: 0.8rem; padding: 8px;" onclick="shareRosterPage(1, 'download')">💾 存第一頁圖片 (仁愛安和大直)</button>
+            <button class="btn btn-outline" style="font-size: 0.8rem; padding: 8px;" onclick="shareRosterPage(2, 'download')">💾 存第二頁圖片 (中山南京)</button>
+          </div>
+          <div class="form-row">
+            <button class="btn btn-secondary" style="font-size: 0.8rem; padding: 8px;" onclick="shareRosterPage(1, 'share')">📲 分享第一頁至 LINE</button>
+            <button class="btn btn-secondary" style="font-size: 0.8rem; padding: 8px;" onclick="shareRosterPage(2, 'share')">📲 分享第二頁至 LINE</button>
+          </div>
+        </div>
+
+        <!-- 橫式雙頁班表預覽容器 -->
+        <div class="preview-container">
+          
+          <!-- 第一張：仁愛、安和、大直 -->
+          <div class="preview-landscape-scaler">
+            <div id="roster-page-1" class="a4-landscape-page">
+              <div class="a4-landscape-header">
+                <h2>悅禾莊園Spa <span class="roster-preview-month-label">7</span>月 班表</h2>
+              </div>
+              <table class="roster-table" id="table-roster-1">
+                <!-- 由 JS 動態繪製橫式表格 -->
+              </table>
+            </div>
+          </div>
+
+          <!-- 第二張：中山、南京 -->
+          <div class="preview-landscape-scaler">
+            <div id="roster-page-2" class="a4-landscape-page">
+              <div class="a4-landscape-header">
+                <h2>悅禾莊園Spa <span class="roster-preview-month-label">7</span>月 班表</h2>
+              </div>
+              <table class="roster-table" id="table-roster-2">
+                <!-- 由 JS 動態繪製橫式表格 -->
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- 底部導覽列 -->
+  <nav class="bottom-nav" id="bottom-nav-bar">
+    <!-- 會由 JS 依系統載入對應的導覽鈕 -->
+  </nav>
+
+  <!-- 通知訊息提示 -->
+  <div id="toast-msg" class="toast">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    <span id="toast-text">儲存成功！</span>
+  </div>
+
+  <!-- ================= JAVASCRIPT 邏輯 ================= -->
+  <script>
+    // ---------------- 預設人員模板資料 ----------------
+    const INITIAL_BRANCH_GROUPS = [
+      {
+        id: 1,
+        name: "仁愛、安和、大直",
+        employees: [
+          { name: "呂筱婷", branch: "仁愛" },
+          { name: "郭麗芳(代)", branch: "仁愛" },
+          { name: "溫瑞萍", branch: "仁愛" },
+          { name: "瑞珍", branch: "仁愛" },
+          { name: "愛玉", branch: "仁愛2" },
+          { name: "邱啟翔", branch: "安和" },
+          { name: "林珮琳(代)", branch: "安和" },
+          { name: "溫瑞萍(代)", branch: "安和" },
+          { name: "呂筱婷(代)", branch: "安和" },
+          { name: "陳淑美", branch: "大直" },
+          { name: "愛玉", branch: "大直" },
+          { name: "溫瑞萍(代)", branch: "大直" }
+        ]
+      },
+      {
+        id: 2,
+        name: "中山、南京",
+        employees: [
+          { name: "彭靖惠(早)", branch: "中山" },
+          { name: "阿秋(晚)", branch: "中山" },
+          { name: "溫瑞萍(代)", branch: "中山" },
+          { name: "紅河(代)", branch: "中山" },
+          { name: "愛玉", branch: "中山" },
+          { name: "劉韋彤", branch: "南京" },
+          { name: "劉映彤(代)", branch: "南京" },
+          { name: "黃名慈(代)", branch: "南京" },
+          { name: "溫瑞萍(代)", branch: "南京" },
+          { name: "紅河(代)", branch: "南京" }
+        ]
+      }
+    ];
+
+    // ---------------- 系統狀態 ----------------
+    let currentSystem = 'quote'; 
+    
+    let appState = {
+      // 1. 報價單資料
+      calcYear: 2026,
+      calcMonth: 7,
+      calcRate: 500,
+      calcThuHours: 4.0,
+      calcWeekendHours: 2.0,
+      quoteItems: [
+        { id: 1, name: "中山會館", unit: "式", qty: 1, price: 78000, remark: "" },
+        { id: 2, name: "安和會館", unit: "式", qty: 1, price: 78000, remark: "" },
+        { id: 3, name: "南京會館", unit: "式", qty: 1, price: 78000, remark: "" },
+        { id: 4, name: "仁愛本館+二館", unit: "式", qty: 1, price: 88000, remark: "" },
+        { id: 5, name: "消毒日清潔加藥草箱清洗\n（大直 仁愛本館 仁愛二館 中山 安和 南京）", unit: "式", qty: 6, price: 2000, remark: "" },
+        { id: 6, name: "大直會館7月份\n星期四5x4H=20H\n(07/02、07/09、07/16、07/23、07/30)\n星期六 日2Hx8=16H 20+16=36H\n(07/04、07/05、07/11、07/12、07/18、07/19 Piscing, 07/25, 07/26)\n36x500=18000", unit: "式", qty: 1, price: 18000, remark: "" }
+      ],
+      companyInfo: {
+        title: "達誠專業環保清潔社",
+        clientName: "悅禾莊園",
+        contactName: "溫瑞萍 0981-881-556",
+        projectName: "清潔工程",
+        projectLocation: "",
+        quoteDate: "115.06.28",
+        taxRate: 5,
+        owner: "廖玉山",
+        phone: "0961-325-251",
+        notes: "本報價單未列事項若需施作另行報價"
+      },
+      
+      // 2. 排班表資料
+      rosterYear: 2026,
+      rosterMonth: 7,
+      // 儲存可動態修改的人員清單
+      branches: null, 
+      // 儲存格式: { "姓名_分店": { "YYYY-MM-DD": "work" | "off" | "dis" | "morning" | "night" | "all" } }
+      rosterData: {
+        "陳淑美_大直": {
+          "2026-07-04": "work", "2026-07-05": "work",
+          "2026-07-11": "work", "2026-07-12": "work",
+          "2026-07-18": "work", "2026-07-19": "work",
+          "2026-07-25": "work", "2026-07-26": "work"
+        },
+        "愛玉_大直": {
+          "2026-07-02": "work", "2026-07-09": "work",
+          "2026-07-16": "dis", "2026-07-23": "work", "2026-07-30": "work"
+        }
+      }
+    };
+
+    // 強制檢查並還原預設員工清單的防禦性函式
+    function ensureRosterBranches() {
+      let needsReset = false;
+      if (!appState.branches || !Array.isArray(appState.branches) || appState.branches.length === 0) {
+        needsReset = true;
+      } else {
+        let totalEmp = 0;
+        appState.branches.forEach(g => {
+          if (!g.employees || !Array.isArray(g.employees)) {
+            needsReset = true;
+          } else {
+            totalEmp += g.employees.length;
+          }
+        });
+        if (totalEmp === 0) {
+          needsReset = true;
+        }
+      }
+      if (needsReset) {
+        appState.branches = JSON.parse(JSON.stringify(INITIAL_BRANCH_GROUPS));
+        saveStateToLocalStorage();
+      }
+    }
+
+    // 記憶體中預先帶入初始名單 (防範 DEFAULT_STATE 為空)
+    if (!appState.branches) {
+      appState.branches = JSON.parse(JSON.stringify(INITIAL_BRANCH_GROUPS));
+    }
+
+    const DEFAULT_STATE = JSON.parse(JSON.stringify(appState));
+
+    // ---------------- Roster 編輯專用變數 ----------------
+    let selectedStaffKey = ""; 
+    let currentPaintTool = "work"; 
+    const weekdaysChinese = ['日', '一', '二', '三', '四', '五', '六'];
+
+    // ---------------- 本地儲存 ----------------
+    function saveStateToLocalStorage() {
+      localStorage.setItem('dacheng_helper_unified_state_v6', JSON.stringify(appState));
+    }
+
+    function loadStateFromLocalStorage() {
+      const saved = localStorage.getItem('dacheng_helper_unified_state_v6');
+      if (saved) {
+        try {
+          appState = JSON.parse(saved);
+        } catch (e) {
+          console.error("讀取快取失敗", e);
+        }
+      }
+      // 核心修正：讀取快取後，在此進行深層驗證與修補，防範覆蓋
+      ensureRosterBranches();
+    }
+
+    // ---------------- 網頁載入進入點 (Entry Point) ----------------
+    window.addEventListener('DOMContentLoaded', () => {
+      try {
+        loadStateFromLocalStorage();
+      } catch (e) {
+        console.error("loadStateFromLocalStorage 發生錯誤:", e);
+      }
+
+      try {
+        initFormFields();
+      } catch (e) {
+        console.error("initFormFields 發生錯誤:", e);
+      }
+
+      try {
+        renderQuoteItemsEditor();
+      } catch (e) {
+        console.error("renderQuoteItemsEditor 發生錯誤:", e);
+      }
+      
+      try {
+        initRosterUI();
+      } catch (e) {
+        console.error("initRosterUI 發生錯誤:", e);
+      }
+      
+      try {
+        switchSystem('quote');
+      } catch (e) {
+        console.error("switchSystem 發生錯誤:", e);
+      }
+    });
+
+    function resetCurrentSystemData() {
+      if (currentSystem === 'quote') {
+        if (confirm("您確定要恢復成原設的報價單範本嗎？(會覆蓋您目前的修改)")) {
+          appState.quoteItems = JSON.parse(JSON.stringify(DEFAULT_STATE.quoteItems));
+          appState.companyInfo = JSON.parse(JSON.stringify(DEFAULT_STATE.companyInfo));
+          appState.calcYear = DEFAULT_STATE.calcYear;
+          appState.calcMonth = DEFAULT_STATE.calcMonth;
+          appState.calcRate = DEFAULT_STATE.calcRate;
+          appState.calcThuHours = DEFAULT_STATE.calcThuHours;
+          appState.calcWeekendHours = DEFAULT_STATE.calcWeekendHours;
+          saveStateToLocalStorage();
+          initFormFields();
+          renderQuoteItemsEditor();
+          showToast("已成功重設報價單資料！");
+        }
+      } else {
+        if (confirm("您確定要恢復排班表（包含人員名單）到預設狀態嗎？")) {
+          appState.rosterData = JSON.parse(JSON.stringify(DEFAULT_STATE.rosterData));
+          appState.branches = JSON.parse(JSON.stringify(DEFAULT_STATE.branches));
+          appState.rosterYear = DEFAULT_STATE.rosterYear;
+          appState.rosterMonth = DEFAULT_STATE.rosterMonth;
+          saveStateToLocalStorage();
+          initRosterUI();
+          showToast("已成功恢復排班表！");
+        }
+      }
+    }
+
+    // ---------------- 初始化表單 ----------------
+    function initFormFields() {
+      document.getElementById('quote-company').value = appState.companyInfo.title;
+      document.getElementById('quote-client').value = appState.companyInfo.clientName;
+      document.getElementById('quote-contact').value = appState.companyInfo.contactName;
+      document.getElementById('quote-project').value = appState.companyInfo.projectName;
+      document.getElementById('quote-location').value = appState.companyInfo.projectLocation;
+      document.getElementById('quote-date').value = appState.companyInfo.quoteDate;
+      document.getElementById('quote-tax-rate').value = appState.companyInfo.taxRate;
+      document.getElementById('quote-owner').value = appState.companyInfo.owner;
+      document.getElementById('quote-phone').value = appState.companyInfo.phone;
+      document.getElementById('quote-notes').value = appState.companyInfo.notes;
+
+      document.getElementById('calc-year').value = appState.calcYear;
+      document.getElementById('calc-month').value = appState.calcMonth;
+      document.getElementById('calc-rate').value = appState.calcRate;
+      document.getElementById('calc-thu-hours').value = appState.calcThuHours;
+      document.getElementById('calc-weekend-hours').value = appState.calcWeekendHours;
+
+      const inputs = [
+        { id: 'quote-company', key: 'title' }, { id: 'quote-client', key: 'clientName' },
+        { id: 'quote-contact', key: 'contactName' }, { id: 'quote-project', key: 'projectName' },
+        { id: 'quote-location', key: 'projectLocation' }, { id: 'quote-date', key: 'quoteDate' },
+        { id: 'quote-owner', key: 'owner' }, { id: 'quote-phone', key: 'phone' },
+        { id: 'quote-notes', key: 'notes' }
+      ];
+      inputs.forEach(item => {
+        const el = document.getElementById(item.id);
+        el.addEventListener('input', () => {
+          appState.companyInfo[item.key] = el.value;
+          saveStateToLocalStorage();
+        });
+      });
+
+      const calcFields = [
+        { id: 'calc-year', key: 'calcYear', type: 'int' }, { id: 'calc-month', key: 'calcMonth', type: 'int' },
+        { id: 'calc-rate', key: 'calcRate', type: 'int' }, { id: 'calc-thu-hours', key: 'calcThuHours', type: 'float' },
+        { id: 'calc-weekend-hours', key: 'calcWeekendHours', type: 'float' }
+      ];
+      calcFields.forEach(item => {
+        const el = document.getElementById(item.id);
+        el.addEventListener('input', () => {
+          appState[item.key] = item.type === 'int' ? (parseInt(el.value) || 0) : (parseFloat(el.value) || 0);
+          saveStateToLocalStorage();
+        });
+      });
+    }
+
+    // ---------------- 系統切換 ----------------
+    function switchSystem(systemId) {
+      currentSystem = systemId;
+      document.querySelectorAll('.system-btn').forEach(btn => btn.classList.remove('active'));
+      
+      const navBar = document.getElementById('bottom-nav-bar');
+      
+      if (systemId === 'quote') {
+        document.getElementById('sys-quote').classList.add('active');
+        document.getElementById('header-title-text').textContent = "達誠報價單產出助手";
+        document.getElementById('system-quote-container').style.display = "block";
+        document.getElementById('system-roster-container').style.display = "none";
+        
+        navBar.innerHTML = `
+          <button class="nav-item active" id="nav-edit" onclick="switchToTab('edit')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path></svg>
+            編輯項目
+          </button>
+          <button class="nav-item" id="nav-preview" onclick="switchToTab('preview')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+            預覽與分享
+          </button>
+        `;
+        switchToTab('edit');
+      } else {
+        document.getElementById('sys-roster').classList.add('active');
+        document.getElementById('header-title-text').textContent = "達誠排班表產出助手";
+        document.getElementById('system-quote-container').style.display = "none";
+        document.getElementById('system-roster-container').style.display = "block";
+        
+        navBar.innerHTML = `
+          <button class="nav-item active" id="nav-roster-edit" onclick="switchToTab('roster-edit')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path></svg>
+            排班編輯
+          </button>
+          <button class="nav-item" id="nav-roster-preview" onclick="switchToTab('roster-preview')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+            預覽與輸出
+          </button>
+        `;
+        switchToTab('roster-edit');
+      }
+    }
+
+    // ---------------- 分頁切換 ----------------
+    function switchToTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      
+      const targetTab = document.getElementById(`tab-${tabId}`);
+      if (targetTab) targetTab.classList.add('active');
+      
+      const targetNav = document.getElementById(`nav-${tabId}`);
+      if (targetNav) targetNav.classList.add('active');
+      
+      window.scrollTo(0, 0);
+
+      if (tabId === 'preview') {
+        syncPreviewTexts();
+        renderQuotationTable();
+      } else if (tabId === 'roster-preview') {
+        renderRosterSheets();
+      }
+    }
+
+    // =========================================================================
+    //                      【系統 A: 報價單模組 JS】
+    // =========================================================================
+    function autoCalculateAndApplyRoster() {
+      const year = appState.calcYear;
+      const month = appState.calcMonth;
+      const rate = appState.calcRate;
+      const thuHours = appState.calcThuHours;
+      const weekendHours = appState.calcWeekendHours;
+
+      const thursdays = [];
+      const weekends = [];
+      const totalDays = new Date(year, month, 0).getDate();
+      
+      for (let day = 1; day <= totalDays; day++) {
+        const d = new Date(year, month - 1, day);
+        const dayOfWeek = d.getDay(); 
+        const formattedDate = `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+        
+        if (dayOfWeek === 4) {
+          thursdays.push(formattedDate);
+        } else if (dayOfWeek === 0 || dayOfWeek === 6) {
+          weekends.push(formattedDate);
+        }
+      }
+
+      const thuCount = thursdays.length;
+      const weekendCount = weekends.length;
+      const thuHoursTotal = thuCount * thuHours;
+      const weekendHoursTotal = weekendCount * weekendHours;
+      const totalHours = thuHoursTotal + weekendHoursTotal;
+      const totalCost = totalHours * rate;
+
+      let text = `大直會館${month}月份\n`;
+      text += `星期四${thuCount}x${thuHours}H=${thuHoursTotal}H\n`;
+      text += `(${thursdays.join('、')})\n`;
+      text += `星期六 日${weekendHours}Hx${weekendCount}=${weekendHoursTotal}H ${thuHoursTotal}+${weekendHoursTotal}=${totalHours}H\n`;
+      text += `(${weekends.join('、')})\n`;
+      text += `${totalHours}x${rate}=${totalCost}`;
+
+      let item6 = appState.quoteItems.find(i => i.id === 6);
+      if (!item6) {
+        item6 = { id: 6, name: "", unit: "式", qty: 1, price: 0, remark: "" };
+        appState.quoteItems.push(item6);
+      }
+      item6.name = text;
+      item6.qty = 1;
+      item6.price = totalCost;
+
+      const rocYear = year - 1911;
+      const formattedMonth = String(month).padStart(2, '0');
+      appState.companyInfo.quoteDate = `${rocYear}.${formattedMonth}.28`;
+      document.getElementById('quote-date').value = appState.companyInfo.quoteDate;
+
+      saveStateToLocalStorage();
+      renderQuoteItemsEditor();
+      showToast("已自動計算排班時數，並更新填入項目 6！");
+    }
+
+    function renderQuoteItemsEditor() {
+      const container = document.getElementById('quote-items-list');
+      container.innerHTML = '';
+
+      appState.quoteItems.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'item-card';
+        
+        div.innerHTML = `
+          <div class="item-card-header">
+            <span class="item-index-label">項目 ${index + 1}</span>
+            <button class="delete-btn" onclick="deleteQuoteItem(${item.id})">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+              刪除
+            </button>
+          </div>
+          <div class="item-grid">
+            <div style="grid-column: span 2;">
+              <label style="font-size:0.75rem; font-weight:500; color:var(--text-muted);">名稱 (支援多行換行)</label>
+              <textarea class="form-control" rows="3" oninput="updateItemField(${item.id}, 'name', this.value)" style="resize:vertical;">${item.name}</textarea>
+            </div>
+          </div>
+          <div class="item-details-row">
+            <div>
+              <label style="font-size:0.75rem; font-weight:500; color:var(--text-muted);">單位</label>
+              <input type="text" class="form-control" value="${item.unit}" oninput="updateItemField(${item.id}, 'unit', this.value)">
+            </div>
+            <div>
+              <label style="font-size:0.75rem; font-weight:500; color:var(--text-muted);">數量</label>
+              <input type="number" class="form-control" value="${item.qty}" step="any" oninput="updateItemField(${item.id}, 'qty', this.value)">
+            </div>
+            <div>
+              <label style="font-size:0.75rem; font-weight:500; color:var(--text-muted);">單價</label>
+              <input type="number" class="form-control" value="${item.price}" oninput="updateItemField(${item.id}, 'price', this.value)">
+            </div>
+          </div>
+          <div style="margin-top: 8px;">
+            <label style="font-size:0.75rem; font-weight:500; color:var(--text-muted);">項目備註 (可留空供手寫)</label>
+            <input type="text" class="form-control" value="${item.remark || ''}" oninput="updateItemField(${item.id}, 'remark', this.value)" placeholder="輸入備註（留空會在預覽單中顯示為空白手寫格）">
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function updateItemField(id, field, val) {
+      const item = appState.quoteItems.find(i => i.id === id);
+      if (item) {
+        if (field === 'qty') {
+          item.qty = parseFloat(val) || 0;
+        } else if (field === 'price') {
+          item.price = parseInt(val) || 0;
+        } else if (field === 'name') {
+          item.name = val;
+        } else if (field === 'unit') {
+          item.unit = val;
+        } else if (field === 'remark') {
+          item.remark = val;
+        }
+        saveStateToLocalStorage();
+      }
+    }
+
+    function addNewQuoteItem() {
+      const nextId = appState.quoteItems.length > 0 
+        ? Math.max(...appState.quoteItems.map(i => i.id)) + 1 
+        : 1;
+      
+      appState.quoteItems.push({
+        id: nextId, name: "新增服務項目描述", unit: "式", qty: 1, price: 1000, remark: ""
+      });
+      
+      saveStateToLocalStorage();
+      renderQuoteItemsEditor();
+      showToast("已成功新增項目！");
+    }
+
+    function deleteQuoteItem(id) {
+      if (confirm("確定要刪除此項目嗎？")) {
+        appState.quoteItems = appState.quoteItems.filter(i => i.id !== id);
+        saveStateToLocalStorage();
+        renderQuoteItemsEditor();
+        showToast("已刪除項目！");
+      }
+    }
+
+    function syncPreviewTexts() {
+      const rawMonth = document.getElementById('quote-date').value.split('.')[1] || 'N';
+      const monthNum = parseInt(rawMonth) || rawMonth;
+      
+      document.getElementById('a4-title-company').textContent = appState.companyInfo.title;
+      document.getElementById('a4-title-month').textContent = `${monthNum}月-報價單`;
+      document.getElementById('a4-client').textContent = appState.companyInfo.clientName;
+      document.getElementById('a4-contact').textContent = appState.companyInfo.contactName;
+      document.getElementById('a4-project').textContent = appState.companyInfo.projectName;
+      document.getElementById('a4-location').textContent = appState.companyInfo.projectLocation;
+      document.getElementById('a4-date').textContent = appState.companyInfo.quoteDate;
+      document.getElementById('a4-notes').innerHTML = appState.companyInfo.notes ? appState.companyInfo.notes : "";
+
+      document.getElementById('a4-footer-company').textContent = appState.companyInfo.title;
+      document.getElementById('a4-footer-owner').textContent = appState.companyInfo.owner;
+      document.getElementById('a4-footer-phone').textContent = appState.companyInfo.phone;
+    }
+
+    function renderQuotationTable() {
+      const tbody = document.getElementById('a4-table-body');
+      tbody.innerHTML = '';
+
+      let subtotal = 0;
+      appState.quoteItems.forEach((item, index) => {
+        const itemTotal = item.qty * item.price;
+        subtotal += itemTotal;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${index + 1}</td>
+          <td class="align-left">${item.name.replace(/\n/g, '<br>')}</td>
+          <td>${item.unit}</td>
+          <td>${item.qty}</td>
+          <td>${formatNumber(item.price)}</td>
+          <td>${formatNumber(itemTotal)}</td>
+          <td>${item.remark || ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      const taxRate = appState.companyInfo.taxRate;
+      const tax = taxRate === 5 ? Math.round(subtotal * 0.05) : 0;
+      const total = subtotal + tax;
+
+      document.getElementById('a4-subtotal').textContent = formatNumber(subtotal);
+      document.getElementById('a4-tax').textContent = formatNumber(tax);
+      document.getElementById('a4-total').textContent = formatNumber(total);
+    }
+
+    function downloadPDF() {
+      showToast("正在建立 PDF，請稍候...");
+      const element = document.getElementById('printable-area');
+      const opt = {
+        margin:       0,
+        filename:     `${appState.companyInfo.quoteDate}_報價單_${appState.companyInfo.clientName}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true, scrollY: 0, scrollX: 0 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: 'avoid-all' }
+      };
+      html2pdf().set(opt).from(element).save()
+        .then(() => showToast("PDF 下載成功！"))
+        .catch(err => alert("下載 PDF 失敗。"));
+    }
+
+    function downloadImage() {
+      showToast("正在渲染圖片，請稍候...");
+      const element = document.getElementById('printable-area');
+      html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollY: 0, scrollX: 0 })
+        .then(canvas => {
+          const link = document.createElement('a');
+          link.download = `${appState.companyInfo.quoteDate}_報價單_${appState.companyInfo.clientName}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          showToast("圖片儲存成功！");
+        }).catch(err => alert("產生圖片失敗。"));
+    }
+
+    function shareToLine() {
+      showToast("正在準備分享檔案...");
+      const element = document.getElementById('printable-area');
+      const opt = {
+        margin:       0,
+        filename:     `報價單_${appState.companyInfo.clientName}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, scrollY: 0, scrollX: 0 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: 'avoid-all' }
+      };
+
+      html2pdf().set(opt).from(element).outputPdf('blob')
+        .then(pdfBlob => {
+          const file = new File([pdfBlob], `報價單_${appState.companyInfo.clientName}.pdf`, { type: 'application/pdf' });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({
+              files: [file],
+              title: '達誠報價單',
+              text: `這是分享給您的報價單（${appState.companyInfo.title}）。`
+            }).catch(() => {});
+          } else {
+            alert("您的裝置不支援一鍵分享 PDF。請下載或存圖後手動發送至 LINE。");
+          }
+        }).catch(err => alert("準備分享失敗。"));
+    }
+
+
+    // =========================================================================
+    //                      【系統 B: 排班表模組 JS】
+    // =========================================================================
+
+    // ---------------- 新增人員表單開關 ----------------
+    function toggleAddStaffForm() {
+      const form = document.getElementById('add-staff-form');
+      if (form.style.display === 'none') {
+        form.style.display = 'block';
+        document.getElementById('new-staff-name').value = '';
+        document.getElementById('new-staff-group').value = '1';
+        updateNewStaffBranchOptions();
+      } else {
+        form.style.display = 'none';
+      }
+    }
+
+    // 動態根據組別切換可選館別
+    function updateNewStaffBranchOptions() {
+      const groupVal = document.getElementById('new-staff-group').value;
+      const branchSelect = document.getElementById('new-staff-branch');
+      branchSelect.innerHTML = '';
+      
+      let options = [];
+      if (groupVal === "1") {
+        options = ["仁愛", "仁愛2", "安和", "大直"];
+      } else {
+        options = ["中山", "南京"];
+      }
+      
+      options.forEach(opt => {
+        const optionElem = document.createElement('option');
+        optionElem.value = opt;
+        optionElem.textContent = opt;
+        branchSelect.appendChild(optionElem);
+      });
+    }
+
+    // 提交新增人員
+    function submitAddStaff() {
+      const name = document.getElementById('new-staff-name').value.trim();
+      const groupId = parseInt(document.getElementById('new-staff-group').value);
+      const branch = document.getElementById('new-staff-branch').value;
+
+      if (!name) {
+        alert("請輸入員工姓名！");
+        return;
+      }
+      if (!branch) {
+        alert("請選擇所屬館別！");
+        return;
+      }
+
+      // 尋找目標分組並塞入新員工
+      const group = appState.branches.find(g => g.id === groupId);
+      if (group) {
+        // 檢查是否重複
+        const exists = group.employees.some(e => e.name === name && e.branch === branch);
+        if (exists) {
+          alert("該員工已在此館別中！");
+          return;
+        }
+
+        group.employees.push({ name, branch });
+        saveStateToLocalStorage();
+        
+        renderStaffSelectionList();
+        toggleAddStaffForm();
+        showToast(`已成功新增員工：${name}`);
+      }
+    }
+
+    // 刪除員工
+    function deleteStaff(name, branch, event) {
+      event.stopPropagation(); // 阻止點擊觸發排班選擇
+
+      if (confirm(`確定要刪除員工「${name} (${branch})」嗎？\n這將移除其出勤資料且無法復原！`)) {
+        // 1. 在分組列表中移除該員
+        appState.branches.forEach(group => {
+          group.employees = group.employees.filter(e => !(e.name === name && e.branch === branch));
+        });
+
+        // 2. 刪除該員的排班資料
+        const key = `${name}_${branch}`;
+        delete appState.rosterData[key];
+
+        // 3. 重設當前選取
+        if (selectedStaffKey === key) {
+          selectedStaffKey = "";
+          document.getElementById('roster-painter-card').style.display = "none";
+        }
+
+        saveStateToLocalStorage();
+        renderStaffSelectionList();
+        showToast("已成功刪除人員！");
+      }
+    }
+
+    // ---------------- 初始化排班頁面 ----------------
+    function initRosterUI() {
+      document.getElementById('roster-year').value = appState.rosterYear;
+      document.getElementById('roster-month').value = appState.rosterMonth;
+      
+      renderStaffSelectionList();
+      
+      selectedStaffKey = "";
+      document.getElementById('roster-painter-card').style.display = "none";
+    }
+
+    function onRosterMonthChange() {
+      appState.rosterYear = parseInt(document.getElementById('roster-year').value);
+      appState.rosterMonth = parseInt(document.getElementById('roster-month').value);
+      saveStateToLocalStorage();
+      
+      if (selectedStaffKey) {
+        renderRosterCalendar();
+      }
+    }
+
+    // 繪製人員清單 (含刪除按鈕)
+    function renderStaffSelectionList() {
+      const container = document.getElementById('staff-selection-list');
+      container.innerHTML = '';
+
+      appState.branches.forEach(group => {
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'staff-group-title';
+        titleDiv.textContent = group.name;
+        container.appendChild(titleDiv);
+
+        group.employees.forEach(emp => {
+          const key = `${emp.name}_${emp.branch}`;
+          const optDiv = document.createElement('div');
+          optDiv.className = 'staff-option';
+          optDiv.id = `staff-opt-${key}`;
+          
+          optDiv.innerHTML = `
+            <span>${emp.name}</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge">${emp.branch}</span>
+              <button class="delete-btn" style="color:#ef4444; padding:2px; font-size:1.15rem;" onclick="deleteStaff('${emp.name}', '${emp.branch}', event)" title="刪除此人員">🗑️</button>
+            </div>
+          `;
+          
+          optDiv.addEventListener('click', () => {
+            selectStaff(emp.name, emp.branch);
+          });
+          
+          container.appendChild(optDiv);
+        });
+      });
+    }
+
+    function selectStaff(name, branch) {
+      const key = `${name}_${branch}`;
+      selectedStaffKey = key;
+
+      document.querySelectorAll('.staff-option').forEach(el => el.classList.remove('active'));
+      const activeEl = document.getElementById(`staff-opt-${key}`);
+      if (activeEl) activeEl.classList.add('active');
+
+      document.getElementById('roster-painter-card').style.display = "block";
+      document.getElementById('current-selected-staff-name').textContent = `${name} (${branch})`;
+
+      // 智慧推薦提示
+      const recommendBox = document.getElementById('smart-recommend-container');
+      if (name === '陳淑美' && branch === '大直') {
+        recommendBox.innerHTML = `
+          <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 8px 12px; border-radius: 8px; font-size: 0.78rem; font-weight: 500; display: flex; align-items: center; gap: 6px; width: 100%;">
+            <span>💡</span>
+            <span>提示：大直會館<strong>陳淑美</strong>固定做<strong>六日</strong>。請選好上班班別並點選上方<strong>「六」</strong>與<strong>「日」</strong>一鍵填入！</span>
+          </div>
+        `;
+        recommendBox.style.display = "block";
+      } else if (name === '愛玉' && branch === '大直') {
+        recommendBox.innerHTML = `
+          <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 8px 12px; border-radius: 8px; font-size: 0.78rem; font-weight: 500; display: flex; align-items: center; gap: 6px; width: 100%;">
+            <span>💡</span>
+            <span>提示：大直會館<strong>愛玉</strong>固定做<strong>星期四</strong>。請選好上班班別並點選上方<strong>「四」</strong>一鍵填入！</span>
+          </div>
+        `;
+        recommendBox.style.display = "block";
+      } else {
+        recommendBox.innerHTML = '';
+        recommendBox.style.display = "none";
+      }
+
+      renderRosterCalendar();
+    }
+
+    // 一鍵快速填入指定星期 (讀取目前選取的 paint-tool)
+    function applyQuickFill(dayType) {
+      if (!selectedStaffKey) return;
+      
+      const year = appState.rosterYear;
+      const month = appState.rosterMonth;
+      const totalDays = new Date(year, month, 0).getDate();
+      
+      if (!appState.rosterData[selectedStaffKey]) {
+        appState.rosterData[selectedStaffKey] = {};
+      }
+      
+      // 讀取目前啟用的畫筆班別
+      const shiftType = currentPaintTool;
+      
+      let fillCount = 0;
+      for (let day = 1; day <= totalDays; day++) {
+        const d = new Date(year, month - 1, day);
+        const dayOfWeek = d.getDay(); // 0:日, 1:一, 2:二, 3:三, 4:四, 5:五, 6:六
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        
+        let match = false;
+        if (dayType === 'monday' && dayOfWeek === 1) match = true;
+        else if (dayType === 'tuesday' && dayOfWeek === 2) match = true;
+        else if (dayType === 'wednesday' && dayOfWeek === 3) match = true;
+        else if (dayType === 'thursday' && dayOfWeek === 4) match = true;
+        else if (dayType === 'friday' && dayOfWeek === 5) match = true;
+        else if (dayType === 'saturday' && dayOfWeek === 6) match = true;
+        else if (dayType === 'sunday' && dayOfWeek === 0) match = true;
+        else if (dayType === 'weekends' && (dayOfWeek === 0 || dayOfWeek === 6)) match = true;
+        
+        if (match) {
+          if (shiftType === 'clear') {
+            delete appState.rosterData[selectedStaffKey][dateStr];
+          } else {
+            appState.rosterData[selectedStaffKey][dateStr] = shiftType;
+          }
+          fillCount++;
+        }
+      }
+      
+      let shiftLabel = "清除";
+      if (shiftType === 'work') shiftLabel = '● 上班';
+      else if (shiftType === 'off') shiftLabel = '休假';
+      else if (shiftType === 'dis') shiftLabel = '消毒';
+      else if (shiftType === 'morning') shiftLabel = '早班';
+      else if (shiftType === 'night') shiftLabel = '晚班';
+      else if (shiftType === 'all') shiftLabel = '全天班';
+      
+      saveStateToLocalStorage();
+      renderRosterCalendar();
+      showToast(`已成功填入 ${fillCount} 天「${shiftLabel}」！`);
+    }
+
+    function selectPaintTool(toolType) {
+      currentPaintTool = toolType;
+      document.querySelectorAll('.paint-tool').forEach(tool => tool.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+    }
+
+    function renderRosterCalendar() {
+      const container = document.getElementById('roster-calendar-grid-container');
+      container.innerHTML = '';
+
+      const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+      weekdays.forEach(day => {
+        const el = document.createElement('div');
+        el.className = 'weekday-label';
+        el.textContent = day;
+        container.appendChild(el);
+      });
+
+      const firstDayIdx = new Date(appState.rosterYear, appState.rosterMonth - 1, 1).getDay();
+      const totalDays = new Date(appState.rosterYear, appState.rosterMonth, 0).getDate();
+
+      for (let i = 0; i < firstDayIdx; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'roster-cal-day empty';
+        container.appendChild(emptyCell);
+      }
+
+      // 取得當前選取人員的姓名與分店
+      const parts = selectedStaffKey.split('_');
+      const selectedName = parts[0] || '';
+      const selectedBranch = parts[1] || '';
+
+      for (let day = 1; day <= totalDays; day++) {
+        const dateStr = `${appState.rosterYear}-${String(appState.rosterMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayCell = document.createElement('div');
+        dayCell.className = 'roster-cal-day';
+
+        // 1. 讀取「當前選取人員」排班狀態
+        const currentShifts = appState.rosterData[selectedStaffKey] || {};
+        const shiftStatus = currentShifts[dateStr];
+        
+        let mySymbol = '';
+        if (shiftStatus) {
+          dayCell.classList.add(`marked-${shiftStatus}`);
+          if (shiftStatus === 'work') mySymbol = '●';
+          else if (shiftStatus === 'off') mySymbol = '休';
+          else if (shiftStatus === 'dis') mySymbol = '消';
+          else if (shiftStatus === 'morning') mySymbol = '早';
+          else if (shiftStatus === 'night') mySymbol = '晚';
+          else if (shiftStatus === 'all') mySymbol = '全';
+        }
+
+        // 2. 尋找「同館別其他同仁」在當日的排班
+        let otherStaffShifts = [];
+        appState.branches.forEach(group => {
+          group.employees.forEach(emp => {
+            const otherKey = `${emp.name}_${emp.branch}`;
+            if (otherKey !== selectedStaffKey && emp.branch === selectedBranch) {
+              const otherShifts = appState.rosterData[otherKey] || {};
+              const otherShiftStatus = otherShifts[dateStr];
+              if (otherShiftStatus) {
+                let symbol = "";
+                if (otherShiftStatus === 'work') symbol = '●';
+                else if (otherShiftStatus === 'off') symbol = '休';
+                else if (otherShiftStatus === 'dis') symbol = '消';
+                else if (otherShiftStatus === 'morning') symbol = '早';
+                else if (otherShiftStatus === 'night') symbol = '晚';
+                else if (otherShiftStatus === 'all') symbol = '全';
+                
+                otherStaffShifts.push({
+                  name: emp.name,
+                  symbol: symbol,
+                  status: otherShiftStatus
+                });
+              }
+            }
+          });
+        });
+
+        // 3. 組合其他人員排班提示文字 (顏色對應畫筆，防溢出簡稱化)
+        let otherLabelsHtml = '';
+        if (otherStaffShifts.length > 0) {
+          const badgeSpans = otherStaffShifts.map(item => {
+            const displayName = item.name.length > 3 ? item.name.substring(0, 2) + '..' : item.name;
+            
+            // 根據排班類別決定背景色與文字顏色，與上面的畫筆顏色一致
+            let bg = '#e2e8f0';
+            let color = '#475569';
+            let border = '#cbd5e1';
+            
+            if (item.status === 'work') { bg = '#dbeafe'; color = '#1d4ed8'; border = '#bfdbfe'; } // ● 上班 (藍色)
+            else if (item.status === 'off') { bg = '#fee2e2'; color = '#dc2626'; border = '#fca5a5'; } // 休假 (紅色)
+            else if (item.status === 'dis') { bg = '#d1fae5'; color = '#059669'; border = '#a7f3d0'; } // 消毒 (綠色)
+            else if (item.status === 'morning') { bg = '#fef3c7'; color = '#d97706'; border = '#fde68a'; } // 早班 (黃色)
+            else if (item.status === 'night') { bg = '#e0e7ff'; color = '#4f46e5'; border = '#c7d2fe'; } // 晚班 (靛藍)
+            else if (item.status === 'all') { bg = '#f3e8ff'; color = '#7c3aed'; border = '#e9d5ff'; } // 全天班 (紫色)
+            
+            const badgeStyle = `background-color: ${bg}; color: ${color}; border: 1px solid ${border}; font-size: 0.58rem; padding: 1px 3px; border-radius: 4px; font-weight: 700; width: 100%; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; line-height: 1.1; margin-bottom: 2px;`;
+            return `<span style="${badgeStyle}" title="${item.name}(${item.symbol})">${displayName}(${item.symbol})</span>`;
+          });
+          otherLabelsHtml = `<div class="other-staff-container">${badgeSpans.join('')}</div>`;
+        }
+
+        // 4. 填充儲存格 HTML
+        dayCell.innerHTML = `
+          <span class="day-num">${day}</span>
+          <span class="my-shift-symbol">${mySymbol}</span>
+          ${otherLabelsHtml}
+        `;
+
+        // 5. 點擊塗色與即時重新整理
+        dayCell.addEventListener('click', () => {
+          if (!appState.rosterData[selectedStaffKey]) {
+            appState.rosterData[selectedStaffKey] = {};
+          }
+          
+          if (currentPaintTool === 'clear') {
+            delete appState.rosterData[selectedStaffKey][dateStr];
+          } else {
+            appState.rosterData[selectedStaffKey][dateStr] = currentPaintTool;
+          }
+          
+          saveStateToLocalStorage();
+          renderRosterCalendar(); // 塗色後立即重繪，呈現最新排班狀態
+        });
+
+        container.appendChild(dayCell);
+      }
+
+      document.getElementById('roster-calendar-month-label').textContent = `${appState.rosterYear}年${appState.rosterMonth}月`;
+    }
+
+    function clearCurrentStaffShifts() {
+      if (selectedStaffKey && confirm("確定要清空該員本月的所有排班嗎？")) {
+        const prefix = `${appState.rosterYear}-${String(appState.rosterMonth).padStart(2, '0')}`;
+        const currentShifts = appState.rosterData[selectedStaffKey] || {};
+        
+        Object.keys(currentShifts).forEach(dateStr => {
+          if (dateStr.startsWith(prefix)) {
+            delete appState.rosterData[selectedStaffKey][dateStr];
+          }
+        });
+        
+        saveStateToLocalStorage();
+        renderRosterCalendar();
+        showToast("已清空排班！");
+      }
+    }
+
+    function renderRosterSheets() {
+      document.querySelectorAll('.roster-preview-month-label').forEach(el => {
+        el.textContent = appState.rosterMonth;
+      });
+
+      const totalDays = new Date(appState.rosterYear, appState.rosterMonth, 0).getDate();
+      
+      drawSingleRosterTable("table-roster-1", appState.branches[0], totalDays);
+      drawSingleRosterTable("table-roster-2", appState.branches[1], totalDays);
+    }
+
+    function drawSingleRosterTable(tableId, group, totalDays) {
+      const table = document.getElementById(tableId);
+      table.innerHTML = '';
+
+      const trDate = document.createElement('tr');
+      trDate.innerHTML = `
+        <th class="col-branch" rowspan="2">館別</th>
+        <th class="col-name" rowspan="2">姓名</th>
+      `;
+      for (let day = 1; day <= 31; day++) {
+        if (day <= totalDays) {
+          trDate.innerHTML += `<th class="col-day">${day}</th>`;
+        } else {
+          trDate.innerHTML += `<th class="col-day" style="background-color:#e2e8f0;"></th>`;
+        }
+      }
+      table.appendChild(trDate);
+
+      const trWeekday = document.createElement('tr');
+      trWeekday.className = 'weekday-row';
+      for (let day = 1; day <= 31; day++) {
+        if (day <= totalDays) {
+          const d = new Date(appState.rosterYear, appState.rosterMonth - 1, day);
+          const weekdayName = weekdaysChinese[d.getDay()];
+          trWeekday.innerHTML += `<th class="col-day">${weekdayName}</th>`;
+        } else {
+          trWeekday.innerHTML += `<th class="col-day" style="background-color:#e2e8f0;"></th>`;
+        }
+      }
+      table.appendChild(trWeekday);
+
+      const branchSpan = {};
+      group.employees.forEach(emp => {
+        branchSpan[emp.branch] = (branchSpan[emp.branch] || 0) + 1;
+      });
+
+      const renderedBranches = {};
+
+      group.employees.forEach(emp => {
+        const tr = document.createElement('tr');
+        const key = `${emp.name}_${emp.branch}`;
+        const staffShifts = appState.rosterData[key] || {};
+
+        let branchTdHtml = '';
+        if (!renderedBranches[emp.branch]) {
+          branchTdHtml = `<td class="col-branch" rowspan="${branchSpan[emp.branch]}">${emp.branch}</td>`;
+          renderedBranches[emp.branch] = true;
+        }
+
+        let nameTdHtml = `<td class="col-name">${emp.name}</td>`;
+
+        let daysHtml = '';
+        for (let day = 1; day <= 31; day++) {
+          if (day <= totalDays) {
+            const dateStr = `${appState.rosterYear}-${String(appState.rosterMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const shiftType = staffShifts[dateStr];
+            
+            let displaySymbol = '';
+            let cellClass = '';
+            
+            if (shiftType === 'work') displaySymbol = '●';
+            else if (shiftType === 'off') { displaySymbol = '休'; cellClass = 'shift-off'; }
+            else if (shiftType === 'dis') { displaySymbol = '消'; cellClass = 'shift-dis'; }
+            else if (shiftType === 'morning') { displaySymbol = '早'; cellClass = 'shift-morning'; }
+            else if (shiftType === 'night') { displaySymbol = '晚'; cellClass = 'shift-night'; }
+            else if (shiftType === 'all') { displaySymbol = '全'; cellClass = 'shift-all'; }
+
+            daysHtml += `<td class="col-day ${cellClass}">${displaySymbol}</td>`;
+          } else {
+            daysHtml += `<td class="col-day" style="background-color:#f1f5f9;"></td>`;
+          }
+        }
+
+        tr.innerHTML = branchTdHtml + nameTdHtml + daysHtml;
+        table.appendChild(tr);
+      });
+    }
+
+    // ---------------- 橫式班表分頁 PDF 導出與分享 (升級功能) ----------------
+    function downloadRosterPDF(page) {
+      showToast("正在建立班表 PDF，請稍候...");
+      
+      let element;
+      let filename = "";
+      let optPagebreak = { mode: 'avoid-all' };
+      
+      if (page === 1) {
+        element = document.getElementById('roster-page-1').cloneNode(true);
+        element.style.margin = "0";
+        element.style.boxShadow = "none";
+        filename = `${appState.rosterYear}年${appState.rosterMonth}月_排班表_仁愛安和大直.pdf`;
+      } else if (page === 2) {
+        element = document.getElementById('roster-page-2').cloneNode(true);
+        element.style.margin = "0";
+        element.style.boxShadow = "none";
+        filename = `${appState.rosterYear}年${appState.rosterMonth}月_排班表_中山南京.pdf`;
+      } else {
+        // 雙頁合併 PDF
+        const element1 = document.getElementById('roster-page-1').cloneNode(true);
+        const element2 = document.getElementById('roster-page-2').cloneNode(true);
+        
+        element = document.createElement('div');
+        element1.style.margin = "0";
+        element1.style.boxShadow = "none";
+        element1.style.pageBreakAfter = "always";
+        
+        element2.style.margin = "0";
+        element2.style.boxShadow = "none";
+        
+        element.appendChild(element1);
+        element.appendChild(element2);
+        filename = `${appState.rosterYear}年${appState.rosterMonth}月_員工排班表_完整版.pdf`;
+        optPagebreak = { mode: 'css' };
+      }
+
+      document.body.appendChild(element);
+
+      const opt = {
+        margin:       0,
+        filename:     filename,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, scrollY: 0, scrollX: 0 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
+        pagebreak:    optPagebreak
+      };
+
+      html2pdf().set(opt).from(element).save()
+        .then(() => {
+          document.body.removeChild(element);
+          showToast("班表 PDF 下載成功！");
+        })
+        .catch(err => {
+          document.body.removeChild(element);
+          console.error(err);
+          alert("下載 PDF 失敗。");
+        });
+    }
+
+    function shareRosterPage(pageNum, action) {
+      showToast("正在處理，請稍候...");
+      
+      const element = document.getElementById(`roster-page-${pageNum}`);
+      const pageTitle = pageNum === 1 ? "仁愛安和大直" : "中山南京";
+      
+      html2canvas(element, {
+        scale: 2.5, // 提高解析度防模糊
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        scrollY: 0,
+        scrollX: 0
+      }).then(canvas => {
+        if (action === 'download') {
+          const link = document.createElement('a');
+          link.download = `${appState.rosterYear}年${appState.rosterMonth}月_班表_${pageTitle}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          showToast("圖片儲存成功！");
+        } else {
+          canvas.toBlob(blob => {
+            const file = new File([blob], `班表_${pageTitle}.png`, { type: 'image/png' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              navigator.share({
+                files: [file],
+                title: '員工排班表',
+                text: `${appState.rosterMonth}月份 班表 (${pageTitle})`
+              }).catch(() => {});
+            } else {
+              alert("您的裝置不支援一鍵分享圖片。請點擊「儲存圖片」後，手動發送至 LINE。");
+            }
+          }, 'image/png');
+        }
+      }).catch(err => {
+        console.error(err);
+        alert("處理失敗。");
+      });
+    }
+
+    // ---------------- 通用輔助 ----------------
+    function formatNumber(num) {
+      return Number(num).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast-msg');
+      const text = document.getElementById('toast-text');
+      text.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2500);
+    }
+  </script>
+</body>
+</html>
