@@ -820,15 +820,19 @@
       font-size: 0.9rem;
       z-index: 1000;
       box-shadow: var(--shadow-lg);
-      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s, visibility 0.3s;
       pointer-events: none;
       display: flex;
       align-items: center;
       gap: 8px;
+      opacity: 0;
+      visibility: hidden;
     }
 
     .toast.show {
       transform: translateX(-50%) translateY(0);
+      opacity: 1;
+      visibility: visible;
     }
   </style>
 </head>
@@ -995,7 +999,7 @@
       <!-- SUB-TAB 2: 預覽與分享 -->
       <div id="tab-preview" class="tab-content">
         <!-- 報價單導出按鈕 -->
-        <div class="card" style="position: sticky; top: 104px; z-index: 5; box-shadow: var(--shadow-md);">
+        <div class="card" style="margin-bottom: 16px;">
           <div class="card-title">📤 輸出與發送 (直式報價單)</div>
           <div class="form-row" style="margin-bottom: 8px;">
             <button class="btn btn-primary" onclick="downloadPDF()">
@@ -1214,7 +1218,7 @@
       <!-- SUB-TAB 2: 預覽與輸出 -->
       <div id="tab-roster-preview" class="tab-content">
         <!-- 輸出按鈕列 (優化：支援分頁 PDF 下載) -->
-        <div class="card" style="position: sticky; top: 104px; z-index: 5; box-shadow: var(--shadow-md);">
+        <div class="card" style="margin-bottom: 16px;">
           <div class="card-title">📤 輸出與發送 (橫式班表)</div>
           <div class="form-row" style="margin-bottom: 8px;">
             <button class="btn btn-primary" style="font-size: 0.8rem; padding: 10px;" onclick="downloadRosterPDF(1)">📥 下載第一頁 PDF<br>(仁愛安和大直)</button>
