@@ -1423,7 +1423,24 @@
       const saved = localStorage.getItem('dacheng_helper_unified_state_v6');
       if (saved) {
         try {
-          appState = JSON.parse(saved);
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object') {
+            const cachedCompanyInfo = parsed.companyInfo || {};
+            appState = Object.assign({}, appState, parsed);
+            appState.companyInfo = Object.assign({
+              title: "達誠專業環保清潔社",
+              clientName: "悅禾莊園",
+              contactName: "溫瑞萍 0981-881-556",
+              projectName: "清潔工程",
+              projectLocation: "",
+              quoteDate: "115.06.28",
+              taxRate: 5,
+              owner: "廖玉山",
+              phone: "0961-325-251",
+              notes: "本報價單未列事項若需施作另行報價",
+              quoteMonthText: "7"
+            }, cachedCompanyInfo);
+          }
         } catch (e) {
           console.error("讀取快取失敗", e);
         }
