@@ -901,6 +901,10 @@
               <input type="text" id="quote-date" class="form-control" value="115.06.28">
             </div>
             <div class="form-group">
+              <label for="quote-month-text">報價標題月份 (如: 7)</label>
+              <input type="text" id="quote-month-text" class="form-control" placeholder="例如: 7">
+            </div>
+            <div class="form-group">
               <label for="quote-tax-rate">稅率 (%)</label>
               <select id="quote-tax-rate" class="form-control" onchange="saveStateAndRecompute()">
                 <option value="5" selected>5% (加值稅)</option>
@@ -1350,7 +1354,8 @@
         taxRate: 5,
         owner: "廖玉山",
         phone: "0961-325-251",
-        notes: "本報價單未列事項若需施作另行報價"
+        notes: "本報價單未列事項若需施作另行報價",
+        quoteMonthText: "7"
       },
       
       // 2. 排班表資料
@@ -1496,6 +1501,7 @@
       document.getElementById('quote-project').value = appState.companyInfo.projectName;
       document.getElementById('quote-location').value = appState.companyInfo.projectLocation;
       document.getElementById('quote-date').value = appState.companyInfo.quoteDate;
+      document.getElementById('quote-month-text').value = appState.companyInfo.quoteMonthText || "";
       document.getElementById('quote-tax-rate').value = appState.companyInfo.taxRate;
       document.getElementById('quote-owner').value = appState.companyInfo.owner;
       document.getElementById('quote-phone').value = appState.companyInfo.phone;
@@ -1511,6 +1517,7 @@
         { id: 'quote-company', key: 'title' }, { id: 'quote-client', key: 'clientName' },
         { id: 'quote-contact', key: 'contactName' }, { id: 'quote-project', key: 'projectName' },
         { id: 'quote-location', key: 'projectLocation' }, { id: 'quote-date', key: 'quoteDate' },
+        { id: 'quote-month-text', key: 'quoteMonthText' },
         { id: 'quote-owner', key: 'owner' }, { id: 'quote-phone', key: 'phone' },
         { id: 'quote-notes', key: 'notes' }
       ];
@@ -1654,6 +1661,10 @@
       const formattedMonth = String(month).padStart(2, '0');
       appState.companyInfo.quoteDate = `${rocYear}.${formattedMonth}.28`;
       document.getElementById('quote-date').value = appState.companyInfo.quoteDate;
+      
+      // 自動同步標題月份
+      appState.companyInfo.quoteMonthText = String(month);
+      document.getElementById('quote-month-text').value = String(month);
 
       saveStateToLocalStorage();
       renderQuoteItemsEditor();
@@ -1750,8 +1761,18 @@
       const rawMonth = document.getElementById('quote-date').value.split('.')[1] || 'N';
       const monthNum = parseInt(rawMonth) || rawMonth;
       
+      // 讀取自訂標題月份，如無則回退至報價日期拆分出的月份
+      let titleMonth = appState.companyInfo.quoteMonthText || "";
+      if (titleMonth) {
+        if (!titleMonth.endsWith("月")) {
+          titleMonth += "月";
+        }
+        document.getElementById('a4-title-month').textContent = `${titleMonth}-報價單`;
+      } else {
+        document.getElementById('a4-title-month').textContent = `${monthNum}月-報價單`;
+      }
+      
       document.getElementById('a4-title-company').textContent = appState.companyInfo.title;
-      document.getElementById('a4-title-month').textContent = `${monthNum}月-報價單`;
       document.getElementById('a4-client').textContent = appState.companyInfo.clientName;
       document.getElementById('a4-contact').textContent = appState.companyInfo.contactName;
       document.getElementById('a4-project').textContent = appState.companyInfo.projectName;
